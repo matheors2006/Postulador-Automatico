@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mock Easy Apply Modal</title>
+</head>
+<body>
+  <div id="easy-apply-modal" role="dialog" aria-labelledby="easy-apply-title">
+    <h2 id="easy-apply-title">Easy Apply</h2>
+    <form id="easy-apply-form">
+
+      <label for="years-experience">Años de experiencia con Python</label>
+      <input type="text" id="years-experience" name="years_experience">
+
+      <fieldset>
+        <legend>¿Tienes permiso para trabajar en este país?</legend>
+        <input type="radio" id="work-auth-yes" name="work_authorization" value="yes">
+        <label for="work-auth-yes">Sí</label>
+
+        <input type="radio" id="work-auth-no" name="work_authorization" value="no">
+        <label for="work-auth-no">No</label>
+      </fieldset>
+
+      <label for="cv-upload">Adjuntar CV</label>
+      <input type="file" id="cv-upload" name="cv_upload">
+
+      <button type="submit" id="submit-application">Submit</button>
+
+    </form>
+  </div>
+</body>
+</html>
