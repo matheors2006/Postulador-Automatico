@@ -4,3 +4,5 @@ __pycache__/
 db.sqlite3
 .env
 chrome_session/
+playwright_profile/
+qr_whatsapp.png

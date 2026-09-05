@@ -2,9 +2,14 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
+
+import django
+
+django.setup()
 
 from bot.services.browser_engine import FormAutomation
 from bot.services.llm_groq import JobApplicationBrain
@@ -31,10 +36,12 @@ def main() -> None:
 
     with sync_playwright() as p:
         context = FormAutomation.start_persistent_browser(p, headless=False)
-        page = context.new_page()
+        page = context.pages[0] if context.pages else context.new_page()
         page.goto(file_url)
 
-        form_fields = FormAutomation.extract_form_fields(page)
+        container = page.locator("body")
+
+        form_fields = FormAutomation.extract_form_fields(container)
         print("Campos extraidos:")
         print(form_fields)
 
@@ -42,7 +49,7 @@ def main() -> None:
         print("Respuesta de Groq:")
         print(groq_response)
 
-        FormAutomation.fill_form_fields(page, groq_response, cv_file_path=dummy_cv_path)
+        FormAutomation.fill_form_fields(container, groq_response, cv_file_path=dummy_cv_path)
 
         page.wait_for_timeout(5000)
         context.close()

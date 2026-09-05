@@ -6,16 +6,15 @@ formularios de postulacion (Easy Apply).
 import os
 from typing import Any
 
-from playwright.sync_api import BrowserContext, Playwright
+from django.conf import settings
+from playwright.sync_api import BrowserContext, Locator, Playwright
 from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-CHROME_SESSION_DIR = os.path.join(_PROJECT_ROOT, "chrome_session")
+PLAYWRIGHT_PROFILE_DIR = os.path.join(settings.BASE_DIR, "playwright_profile")
 
 _EXTRACT_FIELDS_JS = """
-() => {
-    const elements = document.querySelectorAll(
+(container) => {
+    const elements = container.querySelectorAll(
         'input:not([type="hidden"]), textarea, select'
     );
     const results = [];
@@ -24,7 +23,7 @@ _EXTRACT_FIELDS_JS = """
         let label = '';
 
         if (el.id) {
-            const labelFor = document.querySelector(`label[for="${el.id}"]`);
+            const labelFor = container.querySelector(`label[for="${el.id}"]`);
             if (labelFor) {
                 label = labelFor.textContent.trim();
             }
@@ -81,45 +80,49 @@ class FormAutomation:
         Returns:
             El BrowserContext persistente ya lanzado.
         """
-        os.makedirs(CHROME_SESSION_DIR, exist_ok=True)
+        os.makedirs(PLAYWRIGHT_PROFILE_DIR, exist_ok=True)
         return playwright.chromium.launch_persistent_context(
-            CHROME_SESSION_DIR, headless=headless
+            user_data_dir=PLAYWRIGHT_PROFILE_DIR,
+            headless=headless,
+            no_viewport=True,
         )
 
     @staticmethod
-    def extract_form_fields(page: Page) -> list[dict[str, Any]]:
+    def extract_form_fields(container: Locator) -> list[dict[str, Any]]:
         """
-        Extrae todos los campos rellenables de la pagina actual mediante un
-        unico page.evaluate(), evitando ida y vuelta por cada elemento.
+        Extrae todos los campos rellenables dentro de un container (ej. el
+        modal de Easy Apply) mediante un unico container.evaluate(),
+        evitando ida y vuelta por cada elemento y evitando "fugarse" hacia
+        el resto de la pagina (como la barra de busqueda global).
 
         Args:
-            page: Instancia de Page de Playwright ya posicionada en el
-                formulario a analizar.
+            container: Locator de Playwright acotado al modal/formulario a
+                analizar.
 
         Returns:
             Lista de diccionarios con las llaves id, name, type y label.
         """
-        return page.evaluate(_EXTRACT_FIELDS_JS)
+        return container.evaluate(_EXTRACT_FIELDS_JS)
 
     @staticmethod
     def fill_form_fields(
-        page: Page, form_data: dict[str, Any], cv_file_path: str = None
+        container: Locator, form_data: dict[str, Any], cv_file_path: str = None
     ) -> None:
         """
         Completa el formulario usando las decisiones tomadas por el LLM.
 
         Args:
-            page: Instancia de Page de Playwright ya posicionada en el
-                formulario a completar.
+            container: Locator de Playwright acotado al modal/formulario a
+                completar.
             form_data: Diccionario {id_del_campo: valor_decidido}, tal como
                 lo retorna JobApplicationBrain.solve_form.
             cv_file_path: Ruta absoluta al archivo de CV a adjuntar en los
-                campos de tipo file. El valor del LLM se ignora para estos
+                campos de tipo file. El valor del LLM se ignora para esos
                 campos.
         """
         for field_id, value in form_data.items():
             try:
-                locator = page.locator(f'#{field_id}')
+                locator = container.locator(f'#{field_id}')
                 tag_name = locator.evaluate("el => el.tagName.toLowerCase()")
                 input_type = locator.evaluate(
                     "el => el.type ? el.type.toLowerCase() : ''"
